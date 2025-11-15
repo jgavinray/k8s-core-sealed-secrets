@@ -46,6 +46,24 @@ kubectl get secret sealed-secrets-key -n <namespace> -o yaml > sealed-secrets-ke
 
 All configuration options are documented inline in the `values.yaml` file.
 
+## Table of Contents
+
+- [Managing Secrets](#managing-secrets)
+  - [Prerequisites](#prerequisites)
+  - [Adding a New Secret](#adding-a-new-secret)
+  - [Updating an Existing Secret](#updating-an-existing-secret)
+  - [Removing a Secret](#removing-a-secret)
+  - [Working with Multiple Namespaces](#working-with-multiple-namespaces)
+- [Persisting Secrets to GitHub](#persisting-secrets-to-github)
+- [Getting the Public Key](#getting-the-public-key)
+- [Multiple Clusters/Environments](#multiple-clustersenvironments)
+  - [Backing Up Private Keys](#backing-up-private-keys)
+  - [Managing Public Keys](#managing-public-keys)
+- [Backup and Recovery](#backup-and-recovery)
+  - [Backing Up the Private Key](#backing-up-the-private-key)
+  - [Restoring the Private Key](#restoring-the-private-key)
+  - [Disaster Recovery Scenarios](#disaster-recovery-scenarios)
+
 ## Managing Secrets
 
 Once the Sealed Secrets Controller is deployed, you can manage secrets using the `kubeseal` CLI tool.
@@ -112,7 +130,11 @@ ArgoCD will automatically apply the `SealedSecret` resource, and the controller 
 
 ### Updating an Existing Secret
 
-1. **Update the secret YAML file** with new values:
+You can update a secret in two ways:
+
+#### Method 1: Create New Secret (Recommended)
+
+1. **Create a new secret YAML file** with updated values:
 
 ```yaml
 # my-secret.yaml
@@ -146,6 +168,47 @@ git add my-sealed-secret.yaml
 git commit -m "Update sealed secret for my-secret"
 git push
 ```
+
+#### Method 2: Unseal Existing Secret for Rotation
+
+If you need to decrypt an existing sealed secret to rotate it:
+
+1. **Retrieve the private key** from the cluster:
+
+```bash
+# Replace <namespace> with the namespace where sealed-secrets is deployed
+kubectl get secret sealed-secrets-key -n <namespace> -o yaml > sealed-secrets-key-backup.yaml
+```
+
+2. **Unseal the existing sealed secret**:
+
+```bash
+kubeseal --recovery-unseal --recovery-private-key sealed-secrets-key-backup.yaml < my-sealed-secret.yaml > my-secret.yaml
+```
+
+3. **Update the values** in `my-secret.yaml` (edit the base64 encoded values)
+
+4. **Reseal the updated secret**:
+
+```bash
+kubeseal < my-secret.yaml > my-sealed-secret.yaml
+```
+
+5. **Clean up sensitive files**:
+
+```bash
+rm my-secret.yaml sealed-secrets-key-backup.yaml
+```
+
+6. **Commit and push**:
+
+```bash
+git add my-sealed-secret.yaml
+git commit -m "Rotate sealed secret for my-secret"
+git push
+```
+
+**Security Note**: The private key allows decryption of all sealed secrets. Handle it carefully and delete the backup file immediately after use.
 
 ### Removing a Secret
 
