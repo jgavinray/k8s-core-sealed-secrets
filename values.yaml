@@ -1,0 +1,164 @@
+# Default values for k8s-core-sealed-secrets
+# This chart is designed to be deployed via ArgoCD.
+# All configuration options are documented below with inline comments.
+
+# Enable or disable the sealed-secrets dependency
+# Set to false to disable the sealed-secrets controller deployment
+sealed-secrets:
+  enabled: true
+  
+  # Override the default fullname for the sealed-secrets resources
+  # Leave empty to use the default naming convention
+  fullnameOverride: "sealed-secrets"
+  
+  # Namespace where sealed-secrets controller will be deployed
+  # If empty (""), it will use the release namespace from ArgoCD
+  # Example: namespace: "kube-system"
+  namespace: "sealed-secrets"
+  
+  # Container image configuration for the sealed-secrets controller
+  image:
+    registry: docker.io
+    repository: bitnami/sealed-secrets-controller
+    # Image tag - should match the controller version
+    # Check available tags at: https://hub.docker.com/r/bitnami/sealed-secrets-controller/tags
+    tag: "0.29.0"
+    # Image pull policy: Always, IfNotPresent, or Never
+    pullPolicy: IfNotPresent
+    # Array of image pull secrets (for private registries)
+    # Example: pullSecrets: ["my-registry-secret"]
+    pullSecrets: []
+  
+  # Whether to create the sealed-secrets controller deployment
+  # Set to false if you only want to manage the RBAC resources
+  createController: true
+  
+  # Service account configuration for the controller
+  serviceAccount:
+    # Whether to create a service account
+    create: true
+    # Name of the service account (empty = auto-generated)
+    name: ""
+    # Annotations to add to the service account
+    annotations: {}
+    # Labels to add to the service account
+    labels: {}
+  
+  # Pod security context settings
+  # Controls the security context for the entire pod
+  podSecurityContext:
+    enabled: true
+    # Filesystem group ID
+    fsGroup: 65534
+  
+  # Container security context settings
+  # Controls the security context for the controller container
+  containerSecurityContext:
+    enabled: true
+    # Whether the container has a read-only root filesystem
+    readOnlyRootFilesystem: true
+    # Whether the container must run as a non-root user
+    runAsNonRoot: true
+    # User ID to run the container as
+    runAsUser: 1001
+    # Capabilities to drop from the container
+    capabilities:
+      drop:
+        - ALL
+  
+  # Resource limits and requests for the controller pod
+  # Example:
+  # resources:
+  #   limits:
+  #     cpu: 500m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 64Mi
+  resources:
+    limits: {}
+    requests: {}
+  
+  # Node selector for pod placement
+  # Example: nodeSelector: { "kubernetes.io/os": "linux" }
+  nodeSelector: {}
+  
+  # Tolerations for pod scheduling
+  # Example: tolerations: [{ key: "key", operator: "Equal", value: "value", effect: "NoSchedule" }]
+  tolerations: []
+  
+  # Affinity rules for pod scheduling
+  # Example: affinity: { podAntiAffinity: { preferredDuringSchedulingIgnoredDuringExecution: [...] } }
+  affinity: {}
+  
+  # Additional annotations to add to the controller pods
+  # Example: podAnnotations: { "prometheus.io/scrape": "true" }
+  podAnnotations: {}
+  
+  # Additional labels to add to the controller pods
+  podLabels: {}
+  
+  # Service configuration for the controller
+  service:
+    # Service type: ClusterIP, NodePort, or LoadBalancer
+    type: ClusterIP
+    # Port for the HTTP service
+    port: 8080
+    # Annotations for the service
+    annotations: {}
+  
+  # Metrics configuration for Prometheus monitoring
+  metrics:
+    # Metrics service configuration
+    service:
+      type: ClusterIP
+      port: 8081
+      annotations: {}
+    # ServiceMonitor for Prometheus Operator
+    # Set enabled: true if using Prometheus Operator
+    serviceMonitor:
+      enabled: false
+  
+  # RBAC (Role-Based Access Control) configuration
+  rbac:
+    # Whether to create RBAC resources
+    create: true
+    # Whether to create a ClusterRole (required for cluster-wide secret access)
+    clusterRole: true
+    # Service proxier role configuration
+    # Allows external access to the SealedSecret API
+    serviceProxier:
+      # Whether to create the proxier role
+      create: true
+      # Whether to create a RoleBinding for the proxier role
+      bind: true
+  
+  # Additional namespaces that the controller should manage
+  # The controller can manage secrets in multiple namespaces
+  # Example: additionalNamespaces: ["namespace1", "namespace2"]
+  additionalNamespaces: []
+  
+  # Name of the Kubernetes secret containing the sealing key
+  # This is the private key used to decrypt sealed secrets
+  secretName: "sealed-secrets-key"
+  
+  # RSA key size in bits for the encryption key pair
+  # Default is 4096 bits. Supported values: 2048, 3072, 4096, 8192
+  # Larger key sizes provide stronger security but may impact performance
+  # Note: This must be set before the controller is first deployed (on initial key generation)
+  # To use a larger key size, set args below with --key-size flag
+  # Example for 8192-bit key:
+  #   args: ["--key-size", "8192", "--update-status"]
+  # Note: When using args, you must include all desired flags (args overrides defaults)
+  args: []
+  
+  # Whether the controller should update the status subresource of SealedSecret resources
+  # This enables you to see the status of sealed secrets via kubectl
+  # Note: If you set args above, you must include --update-status in args if you want this enabled
+  updateStatus: true
+  
+  # Whether the controller should skip recreating removed secrets
+  # If true, secrets won't be automatically recreated if manually deleted
+  # Useful for backward compatibility in low-privilege environments
+  # Note: If you set args above, you must include --skip-recreate in args if you want this enabled
+  skipRecreate: false
